@@ -1,0 +1,43 @@
+name: Feature request
+description: Propose a change within the public tron2_env scope
+title: "[Feature]: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Keep proposals within the public scope described in README.md and
+        CONTRIBUTING.md. Do not disclose private robot, customer, or deployment data.
+  - type: textarea
+    id: use_case
+    attributes:
+      label: Public use case
+      description: Describe the problem to solve without private deployment details.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed behaviour
+    validations:
+      required: true
+  - type: dropdown
+    id: robot_impact
+    attributes:
+      label: Could this change affect real-robot commands or safety behaviour?
+      options:
+        - "No"
+        - "Yes — owner review required"
+        - "Unsure — owner review required"
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+  - type: checkboxes
+    id: scope
+    attributes:
+      label: Scope confirmation
+      options:
+        - label: This proposal contains no private profiles, endpoints, credentials, logs, captures, model weights, or customer/site data.
+          required: true

@@ -1,0 +1,57 @@
+name: Bug report
+description: Report a reproducible problem in the public tron2_env package
+title: "[Bug]: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Do not include credentials, private robot addresses, camera serial numbers,
+        customer or site data, logs, images, datasets, or security vulnerabilities.
+        Follow SECURITY.md for private vulnerability reporting.
+  - type: input
+    id: version
+    attributes:
+      label: Version or commit
+      description: Provide the package version or Git commit.
+    validations:
+      required: true
+  - type: dropdown
+    id: environment
+    attributes:
+      label: Execution environment
+      options:
+        - Mock or software-only
+        - Authorised real-robot environment
+        - TRON2 Bridge
+        - Local RealSense cameras
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: Problem description
+      description: Explain the expected and actual public behaviour using redacted values.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Minimal reproduction
+      description: Prefer a mock transport or software-only reproduction.
+      render: shell
+    validations:
+      required: true
+  - type: textarea
+    id: checks
+    attributes:
+      label: Checks already run
+      description: Include redacted command output only when it contains no private data.
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: Safety and privacy confirmation
+      options:
+        - label: I removed credentials, private endpoints, serial numbers, customer/site data, logs, and captures.
+          required: true
+        - label: This report is not a security vulnerability; I used SECURITY.md if it is.
+          required: true
