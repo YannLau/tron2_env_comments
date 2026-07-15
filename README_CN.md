@@ -17,6 +17,7 @@ transport 路径已主动排除，不在本次开源范围内。
 - `BridgeObservationProvider`：通过 TRON2 Bridge 获取图像和状态。
 - `MultiCameraManager`：legacy 本机 RealSense 相机观测。
 - `ActionQueue` 和 `LatencyTracker`：RTC 辅助工具。
+- `examples/replay_data.py`：通过 runtime controller 回放录制动作。
 - 关节索引工具和包级异常类型。
 
 ## 本包不包含什么
@@ -31,9 +32,10 @@ transport 路径已主动排除，不在本次开源范围内。
 请将本包和 `tron2_openpi` 放在同级：
 
 ```text
-tron2-vla-open/
+同级目录/
 ├── tron2_openpi/
 └── tron2_env/
+    ├── examples/
     ├── pyproject.toml
     ├── src/
     │   └── tron2_env/
@@ -48,6 +50,7 @@ tron2-vla-open/
 作为独立 editable 包安装：
 
 ```bash
+git clone https://github.com/limx-tron2/tron2_env.git
 cd tron2_env
 python -m pip install -e ".[bridge,openpi]"
 ```
@@ -59,13 +62,17 @@ python -m pip install -e ".[bridge,openpi]"
 | `bridge` | Bridge WebSocket 观测支持。 |
 | `camera` | 通过 `pyrealsense2` 使用本机 RealSense 相机。 |
 | `openpi` | 可选 policy wrapper 使用的图像格式化 helper 依赖。 |
+| `replay` | `examples/replay_data.py` 使用的 parquet 和 YAML 依赖。 |
 | `dev` | 测试运行依赖。 |
-| `all` | Bridge、camera 和 OpenPI helper 依赖。 |
+| `all` | Bridge、camera、OpenPI helper 和 replay 依赖。 |
 
-如果使用完整 OpenPI 部署包，还需要安装/sync `tron2_openpi`：
+如果需要配合同级的 TRON2 OpenPI 部署仓库使用，请单独 clone 并安装/sync
+`tron2_openpi`：
 
 ```bash
-cd ../tron2_openpi
+cd ..
+git clone https://github.com/limx-tron2/tron2_openpi.git
+cd tron2_openpi
 uv sync
 ```
 
@@ -122,6 +129,25 @@ finally:
 实际 policy 部署建议直接使用 `tron2_openpi/examples/tron2/pi_client.py`，它已经把
 policy client、`Tron2Env`、观测和 action 播放串联好。
 
+## 回放录制数据
+
+`examples/replay_data.py` 会通过 `tron2_env` 直接回放 parquet 轨迹。它使用同级
+`tron2_openpi` 仓库中的部署 YAML 读取机器人 IP、初始化姿态、backend 和播放频率。
+
+必须先 dry-run：
+
+```bash
+python -m pip install -e ".[replay]"
+python examples/replay_data.py \
+  --file /path/to/trajectory.parquet \
+  --deploy-config ../tron2_openpi/configs/deploy/tron2_deploy.local.yaml \
+  --data-key action \
+  --dry-run
+```
+
+只有在确认文件、回放范围、机器人地址、初始化姿态和工作空间安全后，才移除
+`--dry-run`。
+
 ## 配置概念
 
 `Tron2Config` 包含机器人级设置：
@@ -137,8 +163,8 @@ policy client、`Tron2Env`、观测和 action 播放串联好。
 | `connection_timeout` | WebSocket 连接超时时间。 |
 
 `EnvConfig` 由 `Tron2Env` 和 TRON2 客户端使用，用于选择观测模式、action 播放频率、
-调试记录、Bridge 设置和相机设置。推荐值可以参考 `tron2_openpi/config/` 中的公开
-部署模板。
+调试记录、Bridge 设置和相机设置。推荐值可以参考
+`tron2_openpi/configs/deploy/` 中的公开部署模板。
 
 ## 观测模式
 

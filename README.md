@@ -18,6 +18,7 @@ undeveloped low-level transport path is intentionally not included.
 - `BridgeObservationProvider`: image and state observation support through TRON2 Bridge.
 - `MultiCameraManager`: legacy local RealSense camera observation support.
 - `ActionQueue` and `LatencyTracker`: RTC helper utilities.
+- `examples/replay_data.py`: recorded-action replay through the runtime controller.
 - Joint index helpers and package-level exceptions.
 
 ## What Is Not Included
@@ -32,9 +33,10 @@ undeveloped low-level transport path is intentionally not included.
 Keep this package next to `tron2_openpi`:
 
 ```text
-tron2-vla-open/
+parent-directory/
 ├── tron2_openpi/
 └── tron2_env/
+    ├── examples/
     ├── pyproject.toml
     ├── src/
     │   └── tron2_env/
@@ -49,6 +51,7 @@ tron2-vla-open/
 Install the runtime as an independent editable package:
 
 ```bash
+git clone https://github.com/limx-tron2/tron2_env.git
 cd tron2_env
 python -m pip install -e ".[bridge,openpi]"
 ```
@@ -60,13 +63,17 @@ Optional extras:
 | `bridge` | WebSocket bridge observation support. |
 | `camera` | Local RealSense camera support through `pyrealsense2`. |
 | `openpi` | Image formatting helper dependency used by the optional policy wrapper. |
+| `replay` | Parquet and YAML dependencies for `examples/replay_data.py`. |
 | `dev` | Test runner dependencies. |
-| `all` | Bridge, camera, and OpenPI helper dependencies. |
+| `all` | Bridge, camera, OpenPI helper, and replay dependencies. |
 
-When using the full OpenPI deployment bundle, also install/sync `tron2_openpi`:
+When using this package with the TRON2 OpenPI deployment repository, clone
+`tron2_openpi` as a sibling and install/sync it separately:
 
 ```bash
-cd ../tron2_openpi
+cd ..
+git clone https://github.com/limx-tron2/tron2_openpi.git
+cd tron2_openpi
 uv sync
 ```
 
@@ -125,6 +132,26 @@ finally:
 For policy deployment, use `tron2_openpi/examples/tron2/pi_client.py`; it wires
 the policy client, `Tron2Env`, observations, and action playback together.
 
+## Replay Recorded Data
+
+`examples/replay_data.py` replays a recorded parquet trajectory directly through
+`tron2_env`. It uses the deployment YAML from the sibling `tron2_openpi`
+repository for robot IP, initialization pose, backend, and playback rate.
+
+Always dry-run first:
+
+```bash
+python -m pip install -e ".[replay]"
+python examples/replay_data.py \
+  --file /path/to/trajectory.parquet \
+  --deploy-config ../tron2_openpi/configs/deploy/tron2_deploy.local.yaml \
+  --data-key action \
+  --dry-run
+```
+
+Remove `--dry-run` only after confirming the file, replay range, robot address,
+initial pose, and workspace safety.
+
 ## Configuration Concepts
 
 `Tron2Config` contains robot-level settings:
@@ -141,8 +168,8 @@ the policy client, `Tron2Env`, observations, and action playback together.
 
 `EnvConfig` is used by `Tron2Env` and the TRON2 client to select observation
 mode, action playback rate, debug recording, bridge settings, and camera
-settings. The public deployment templates in `tron2_openpi/config/` show the
-recommended values.
+settings. The public deployment templates in `tron2_openpi/configs/deploy/`
+show the recommended values.
 
 ## Observation Modes
 

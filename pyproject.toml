@@ -21,6 +21,10 @@ dependencies = [
 bridge = ["websockets>=12"]
 camera = ["pyrealsense2"]
 openpi = ["einops>=0.8"]
+replay = [
+    "polars>=1.30.0",
+    "PyYAML>=6.0",
+]
 dev = [
     "build>=1.2",
     "pytest>=8",
@@ -29,6 +33,8 @@ all = [
     "websockets>=12",
     "pyrealsense2",
     "einops>=0.8",
+    "polars>=1.30.0",
+    "PyYAML>=6.0",
 ]
 
 [tool.setuptools.packages.find]
