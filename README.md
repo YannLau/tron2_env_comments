@@ -162,6 +162,7 @@ initial pose, and workspace safety.
 | `port` | Robot controller WebSocket port. |
 | `init_joints` | Optional 14-value arm initialization pose. |
 | `init_head` | Optional 2-value head initialization pose. |
+| `init_ee_z_min` | Minimum end-effector Z height before initialization routes through the intermediate joint pose; set to `None` to disable this check. |
 | `state_queue_maxlen` | Robot state feedback queue length. |
 | `polling_rate` | Robot state polling rate. |
 | `connection_timeout` | WebSocket connection timeout. |

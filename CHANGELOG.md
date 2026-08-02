@@ -16,6 +16,8 @@ and this project intends to use [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- Added an end-effector Z-height guard to route unsafe initialization poses
+  through the intermediate joint pose.
 - Completed the LeRobot ActionQueue provenance, Apache-2.0 attribution, retained
   upstream copyright, LimX modification notice, and current distribution scope.
 - Aligned the README provenance wording with `NOTICE` and added an auditable

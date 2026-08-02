@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import sys
+import threading
 import time
 import types
 
@@ -66,6 +67,10 @@ from tron2_env.config import Tron2Config  # noqa: E402
 from tron2_env.errors import CommandError, StateError  # noqa: E402
 from tron2_env.joints import JointIndex  # noqa: E402
 from tron2_env.transport import WebsocketTransport  # noqa: E402
+
+
+def test_default_init_ee_z_threshold_is_minus_point_six_meters():
+    assert Tron2Config().init_ee_z_min == pytest.approx(-0.6)
 
 
 @pytest.fixture
@@ -154,6 +159,99 @@ def test_set_gripper_emits_message(transport):
     payload = sent[-1]["data"]
     assert payload["left_opening"] == 33
     assert payload["right_opening"] == 66
+
+
+def test_get_ee_poses_requests_and_returns_latest_pose(transport):
+    expected_pose = {
+        "timestamp": 1001,
+        "left_position": [0.1, 0.2, 0.3],
+        "left_quat": [1.0, 0.0, 0.0, 0.0],
+        "right_position": [0.4, 0.5, 0.6],
+        "right_quat": [1.0, 0.0, 0.0, 0.0],
+        "result": "success",
+    }
+
+    def feed_pose_after_request():
+        deadline = time.time() + 0.5
+        while time.time() < deadline:
+            sent = [json.loads(m) for m in _ws_app().sent]
+            if any(m.get("title") == "request_get_move_pose" for m in sent):
+                _ws_app().feed_message({
+                    "title": "response_get_move_pose",
+                    "timestamp": 999,
+                    "data": expected_pose,
+                })
+                return
+            time.sleep(0.001)
+
+    feeder = threading.Thread(target=feed_pose_after_request, daemon=True)
+    feeder.start()
+
+    pose = transport.get_ee_poses(timeout=0.5)
+
+    feeder.join(timeout=0.5)
+    assert pose["timestamp"] == 1001
+    assert pose["left_position"] == expected_pose["left_position"]
+    assert pose["right_position"] == expected_pose["right_position"]
+
+
+def test_get_ee_poses_rejects_fail_not_data_response(transport):
+    def feed_failure_after_request():
+        deadline = time.time() + 0.5
+        while time.time() < deadline:
+            sent = [json.loads(m) for m in _ws_app().sent]
+            if any(m.get("title") == "request_get_move_pose" for m in sent):
+                _ws_app().feed_message({
+                    "title": "response_get_move_pose",
+                    "timestamp": 999,
+                    "data": {
+                        "timestamp": 1001,
+                        "left_position": [0.0, 0.0, 0.0],
+                        "left_quat": [1.0, 0.0, 0.0, 0.0],
+                        "right_position": [0.0, 0.0, 0.0],
+                        "right_quat": [1.0, 0.0, 0.0, 0.0],
+                        "result": "fail_not_data",
+                    },
+                })
+                return
+            time.sleep(0.001)
+
+    feeder = threading.Thread(target=feed_failure_after_request, daemon=True)
+    feeder.start()
+
+    with pytest.raises(StateError, match="fail_not_data"):
+        transport.get_ee_poses(timeout=0.5)
+
+    feeder.join(timeout=0.5)
+
+
+def test_move_to_init_pose_uses_second_joint_when_ee_z_below_threshold(monkeypatch):
+    t = WebsocketTransport.__new__(WebsocketTransport)
+    init_joints = [0.2] * JointIndex.MOVEJ_DIM
+    second_joint = [0.1] * JointIndex.MOVEJ_DIM
+    t.config = Tron2Config(init_joints=init_joints, init_ee_z_min=0.25)
+    t._second_joint = second_joint
+    t.logger = _ws_mod.logging.getLogger("test-init-ee-z")
+
+    safe_joint_state = [0.5] * JointIndex.STATE_DIM
+    movej_calls = []
+    gripper_calls = []
+
+    t.get_joint_state = lambda timeout=1.0: {"states": safe_joint_state}
+    t.get_ee_poses = lambda timeout=1.0: {
+        "left_position": [0.0, 0.0, 0.2],
+        "right_position": [0.0, 0.0, 0.4],
+    }
+    t.movej = lambda joints, move_time=2.0: movej_calls.append(list(joints))
+    t.set_gripper = lambda left_opening=0.0, right_opening=0.0: gripper_calls.append(
+        (left_opening, right_opening)
+    )
+    monkeypatch.setattr(_ws_mod.time, "sleep", lambda _seconds: None)
+
+    t._move_to_init_pose()
+
+    assert movej_calls == [second_joint, init_joints]
+    assert gripper_calls == [(100, 100)]
 
 
 def test_disconnect_marks_disconnected(transport):

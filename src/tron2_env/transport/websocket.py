@@ -9,9 +9,8 @@ old implementation:
   ``MotionController._publish_loop``.
 * Added ``get_head_position`` so callers no longer reach into private state.
 * Dropped methods with zero production callers: ``movep``, ``servop``,
-  ``get_ee_poses``, ``chassis_*``, ``lifter_*``, ``set_light_effect``,
-  ``emergency_stop``. The corresponding ws subscriptions and state buffers
-  are gone too.
+  ``chassis_*``, ``lifter_*``, ``set_light_effect``, ``emergency_stop``.
+  The corresponding ws subscriptions and state buffers are gone too.
 * ``movej`` / ``move_head`` / ``wait_until_reached`` / ``set_gripper``
   retained — used by ``_move_to_init_pose`` and ``env.reset``.
 """
@@ -67,7 +66,15 @@ class WebsocketTransport:
             "joint_updated": False,
             "gripper_updated": False,
         }
+        self.ee_pose_states: Dict = {
+            "timestamp": -1,
+            "left_position": [-1.0, -1.0, -1.0],
+            "left_quat": [-1.0, -1.0, -1.0, -1.0],
+            "right_position": [-1.0, -1.0, -1.0],
+            "right_quat": [-1.0, -1.0, -1.0, -1.0],
+        }
         self.joint_state_queue: deque = deque(maxlen=self.config.state_queue_maxlen)
+        self.ee_pose_queue: deque = deque(maxlen=self.config.state_queue_maxlen)
         self._queue_lock = threading.Lock()
         self._state_lock = threading.Lock()
 
@@ -137,6 +144,8 @@ class WebsocketTransport:
                 self._handle_joint_state(root)
             elif title == "response_get_limx_2fclaw_state":
                 self._handle_gripper_state(root)
+            elif title == "response_get_move_pose":
+                self._handle_ee_pose(root)
             elif title not in {
                 "notify_robot_info",
                 "response_servoj",
@@ -175,6 +184,20 @@ class WebsocketTransport:
             self.joint_states["states"][JointIndex.RIGHT_GRIPPER] = data.get("right_opening", -1) / 100.0
             self.joint_states["gripper_updated"] = True
             self._try_commit_state()
+
+    def _handle_ee_pose(self, root: Dict) -> None:
+        data = root.get("data", {})
+        pose = {
+            "timestamp": data.get("timestamp", root.get("timestamp", -1)),
+            "left_position": data.get("left_position", [-1.0, -1.0, -1.0]),
+            "left_quat": data.get("left_quat", [-1.0, -1.0, -1.0, -1.0]),
+            "right_position": data.get("right_position", [-1.0, -1.0, -1.0]),
+            "right_quat": data.get("right_quat", [-1.0, -1.0, -1.0, -1.0]),
+            "result": data.get("result"),
+        }
+        self.ee_pose_states = pose
+        with self._queue_lock:
+            self.ee_pose_queue.append(pose.copy())
 
     def _try_commit_state(self) -> None:
         """Commit to queue only when both joint and gripper frames have arrived."""
@@ -254,6 +277,25 @@ class WebsocketTransport:
                     return states
             time.sleep(0.001)
         raise StateError(f"get_joint_state timed out ({timeout}s)")
+
+    def get_ee_poses(self, timeout: float = 1.0) -> Dict:
+        """Request and return the latest end-effector poses."""
+        with self._queue_lock:
+            self.ee_pose_queue.clear()
+        if not self._send_request("request_get_move_pose"):
+            raise StateError("get_ee_poses request failed")
+
+        start = time.time()
+        while time.time() - start < timeout:
+            with self._queue_lock:
+                if self.ee_pose_queue:
+                    pose = self.ee_pose_queue.popleft()
+                    result = pose.get("result")
+                    if result not in (None, "success"):
+                        raise StateError(f"get_ee_poses failed: {result}")
+                    return pose
+            time.sleep(0.001)
+        raise StateError(f"get_ee_poses timed out ({timeout}s)")
 
     def find_nearest_state(self, target_timestamp_s: float) -> Optional[Dict]:
         """Find the state in the queue whose timestamp is closest to target.
@@ -377,6 +419,40 @@ class WebsocketTransport:
         self._send_request("request_moveh", {"joint": head_joint, "time": move_time})
         self.logger.debug("move_head sent: %s", head_joint)
 
+    def _joint_pose_needs_second_joint(self, current: List[float]) -> bool:
+        return (
+            abs(current[0]) < 0.1
+            and abs(current[8]) < 0.1
+            and abs(current[3]) < 0.2
+            and abs(current[11]) < 0.2
+        )
+
+    def _ee_pose_needs_second_joint(self, ee_pose: Dict) -> bool:
+        threshold = self.config.init_ee_z_min
+        if threshold is None:
+            return False
+
+        z_values = []
+        for key in ("left_position", "right_position"):
+            position = ee_pose.get(key, [])
+            if len(position) >= 3:
+                try:
+                    z_values.append(float(position[2]))
+                except (TypeError, ValueError):
+                    continue
+        if not z_values:
+            raise StateError("bad ee pose: missing left/right z position")
+
+        min_z = min(z_values)
+        if min_z < float(threshold):
+            self.logger.info(
+                "ee z %.4f below init threshold %.4f; routing via second joint",
+                min_z,
+                threshold,
+            )
+            return True
+        return False
+
     def _move_to_init_pose(self) -> None:
         """Bring the robot to the init pose declared in config."""
         self.logger.info("moving to init pose")
@@ -385,12 +461,10 @@ class WebsocketTransport:
             current = states["states"]
             # If lying close to home, swing through a known intermediate first to
             # avoid the controller picking a weird shortest path.
-            if (
-                abs(current[0]) < 0.1
-                and abs(current[8]) < 0.1
-                and abs(current[3]) < 0.2
-                and abs(current[11]) < 0.2
-            ):
+            need_second_joint = self._joint_pose_needs_second_joint(current)
+            if not need_second_joint and self.config.init_ee_z_min is not None:
+                need_second_joint = self._ee_pose_needs_second_joint(self.get_ee_poses(timeout=1.0))
+            if need_second_joint:
                 self.movej(self._second_joint, move_time=2.0)
                 time.sleep(2)
             self.movej(self.config.init_joints, move_time=2.0)
