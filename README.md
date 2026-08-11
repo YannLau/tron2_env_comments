@@ -1,3 +1,5 @@
+# English | [中文](README_CN.md)
+
 # tron2_env
 
 [中文文档](README_CN.md)
