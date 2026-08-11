@@ -158,6 +158,7 @@ python examples/replay_data.py \
 | `port` | 机器人控制器 WebSocket 端口。 |
 | `init_joints` | 可选 14 维双臂初始化姿态。 |
 | `init_head` | 可选 2 维头部初始化姿态。 |
+| `init_ee_z_min` | 初始化前的末端 Z 高度下限；低于该值时先经过中间关节姿态，设为 `None` 可禁用此检查。 |
 | `state_queue_maxlen` | 机器人状态反馈队列长度。 |
 | `polling_rate` | 机器人状态轮询频率。 |
 | `connection_timeout` | WebSocket 连接超时时间。 |

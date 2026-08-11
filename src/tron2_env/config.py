@@ -1,8 +1,8 @@
 """Robot-level configuration.
 
-Holds connection params (`robot_ip` / `port`), bring-up pose
-(`init_joints` / `init_head`), and WebSocket transport tuning shared by
-the TRON2 runtime.
+Holds connection params (`robot_ip` / `port`), bring-up pose and safety
+settings (`init_joints` / `init_head` / `init_ee_z_min`), and WebSocket
+transport tuning shared by the TRON2 runtime.
 """
 
 from __future__ import annotations
@@ -24,6 +24,7 @@ class Tron2Config:
     # bring-up pose
     init_joints: Optional[List[float]] = None      # 14-dim (arm-only)
     init_head: Optional[List[float]] = None        # 2-dim
+    init_ee_z_min: Optional[float] = -0.6          # route via second joint if any EE z is below this
 
     # ws transport internals
     state_queue_maxlen: int = 7
