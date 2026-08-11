@@ -2,8 +2,6 @@
 
 # tron2_env
 
-[中文文档](README_CN.md)
-
 `tron2_env` is the public TRON2 runtime package used by the TRON2 OpenPI
 deployment example. It provides robot communication, motion execution,
 observation collection, and RTC helper utilities for real-robot deployment.
