@@ -11,15 +11,26 @@ def main() -> None:
     parser = argparse.ArgumentParser(
         description="Send one movej joint command to the TRON2 robot and exit."
     )
-    parser.add_argument("--a", default=1, type=int)
-    a = 1
-
-    name = parser.parse_args()
-
-    a = name.a
+    parser.add_argument("--a", default=3, type=int)
+    namespace = parser.parse_args()
+    a = namespace.a
 
     config = Tron2Config(robot_ip="10.192.1.2",port="5000")
-
+#-------------------------------------------------------------------------------------------------------------------
+    relax_post = [0.0002000182867050171, 
+                  -0.009099721908569336, 
+                  1.4819000959396362, 
+                  -0.004099671263247728, 
+                  0.0034999847412109375, 
+                  0.004800081253051758, 
+                  -0.0016997496131807566, 
+                  0.003800138831138611, 
+                  -0.0018998384475708008, 
+                  -1.481699824333191, 
+                  -0.007300202269107103, 
+                  -0.0012000242713838816, 
+                  0.002400040626525879, 
+                  -0.0013001600746065378]
     DEFAULT_INIT_HEAD = [1.0467, -0.0139998]
     DEFAULT_INIT_JOINTS = [
         0.026899,    # 左臂关节1
@@ -37,22 +48,45 @@ def main() -> None:
         -0.02309972, # 右臂关节6
         0.06469989,  # 右臂关节7
     ]
-
     up_head = [-0.62,-0.0139998]
     amazing = [0.000999913, -0.00449967, 1.482, -1.57, 0.0036, 0.00289989, -0.00160009, 0.0415001, 0.1279, -1.4808, -1.57, -0.00739986, 0.0151, -0.0624998,]
+#-------------------------------------------------------------------------------------------------------------------
 
-
-    if a == 1:
+    if a == 1:     # 直接进入遥操初始位置
         with WebsocketTransport(config=config) as transport:
             transport.move_head(DEFAULT_INIT_HEAD,move_time=3)
             time.sleep(3)
             transport.movej(DEFAULT_INIT_JOINTS,move_time=2)
-    elif a == 2:
+    elif a == 2:   # 直接进入奇异位置
         with WebsocketTransport(config=config) as transport:
             transport.move_head(up_head, move_time=3)
             time.sleep(3)
-            transport.movej(amazing, move_time=2)     
+            transport.movej(amazing, move_time=2)
+    elif a == 3:          # 先进入奇异位置，再进入遥操初始位置
+        with WebsocketTransport(config=config) as transport:
+            transport.move_head(up_head, move_time=3)
+            time.sleep(3)
+            transport.movej(amazing, move_time=2)
+            time.sleep(3)
+            transport.move_head(DEFAULT_INIT_HEAD,move_time=3)
+            time.sleep(3)
+            transport.movej(DEFAULT_INIT_JOINTS,move_time=2)
+    else:  # 先进入奇异状态，再进入放松状态
+        with WebsocketTransport(config=config) as transport:
+            transport.move_head(up_head, move_time=3)
+            time.sleep(3)
+            transport.movej(amazing, move_time=2)
+            time.sleep(3)
+            transport.move_head(DEFAULT_INIT_HEAD,move_time=3)
+            time.sleep(3)
+            transport.movej(relax_post,move_time=2)
 
 # ── 程序入口 ──
 if __name__ == "__main__":
     main()
+    # config = Tron2Config(robot_ip="10.192.1.2",port="5000")
+    # with WebsocketTransport(config=config) as transport:
+    #     current = transport.get_joint_state(timeout=50)['states']
+    #     from tron2_env.joints import JointIndex
+    #     arm = current[JointIndex.LEFT_ARM] + current[JointIndex.RIGHT_ARM]
+    #     print(arm)
