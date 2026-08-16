@@ -49,7 +49,8 @@ def main() -> None:
         0.06469989,  # 右臂关节7
     ]
     up_head = [-0.62,-0.0139998]
-    amazing = [0.000999913, -0.00449967, 1.482, -1.57, 0.0036, 0.00289989, -0.00160009, 0.0415001, 0.1279, -1.4808, -1.57, -0.00739986, 0.0151, -0.0624998,]
+    amazing = [0.000999913, -0.00449967, 1.482, -1.57, 0.0036, 0.00289989, -0.00160009, 
+               0.0415001, 0.1279, -1.4808, -1.57, -0.00739986, 0.0151, -0.0624998,]
 #-------------------------------------------------------------------------------------------------------------------
 
     if a == 1:     # 直接进入遥操初始位置
@@ -84,9 +85,3 @@ def main() -> None:
 # ── 程序入口 ──
 if __name__ == "__main__":
     main()
-    # config = Tron2Config(robot_ip="10.192.1.2",port="5000")
-    # with WebsocketTransport(config=config) as transport:
-    #     current = transport.get_joint_state(timeout=50)['states']
-    #     from tron2_env.joints import JointIndex
-    #     arm = current[JointIndex.LEFT_ARM] + current[JointIndex.RIGHT_ARM]
-    #     print(arm)
