@@ -17,6 +17,7 @@ def main() -> None:
 
     config = Tron2Config(robot_ip="10.192.1.2",port="5000")
 #-------------------------------------------------------------------------------------------------------------------
+    # 双臂下垂 放松姿态
     relax_post = [0.0002000182867050171, 
                   -0.009099721908569336, 
                   1.4819000959396362, 
@@ -31,6 +32,8 @@ def main() -> None:
                   -0.0012000242713838816, 
                   0.002400040626525879, 
                   -0.0013001600746065378]
+
+    # 遥操初始状态
     DEFAULT_INIT_HEAD = [1.0467, -0.0139998]
     DEFAULT_INIT_JOINTS = [
         0.026899,    # 左臂关节1
@@ -48,21 +51,25 @@ def main() -> None:
         -0.02309972, # 右臂关节6
         0.06469989,  # 右臂关节7
     ]
+
+    # 奇异状态位姿
     up_head = [-0.62,-0.0139998]
     amazing = [0.000999913, -0.00449967, 1.482, -1.57, 0.0036, 0.00289989, -0.00160009, 
                0.0415001, 0.1279, -1.4808, -1.57, -0.00739986, 0.0151, -0.0624998,]
 #-------------------------------------------------------------------------------------------------------------------
 
-    if a == 1:     # 直接进入遥操初始位置
+    if a == 1:     # 直接进入遥操初始位置 (危险，可能会碰到桌子) ！！！！！！！！！！！！！！！！！
         with WebsocketTransport(config=config) as transport:
             transport.move_head(DEFAULT_INIT_HEAD,move_time=3)
             time.sleep(3)
             transport.movej(DEFAULT_INIT_JOINTS,move_time=2)
+            transport.set_gripper(left_opening=100.0,right_opening=100.0)
     elif a == 2:   # 直接进入奇异位置
         with WebsocketTransport(config=config) as transport:
             transport.move_head(up_head, move_time=3)
             time.sleep(3)
             transport.movej(amazing, move_time=2)
+            transport.set_gripper(left_opening=100.0,right_opening=100.0)
     elif a == 3:          # 先进入奇异位置，再进入遥操初始位置
         with WebsocketTransport(config=config) as transport:
             transport.move_head(up_head, move_time=3)
@@ -72,6 +79,13 @@ def main() -> None:
             transport.move_head(DEFAULT_INIT_HEAD,move_time=3)
             time.sleep(3)
             transport.movej(DEFAULT_INIT_JOINTS,move_time=2)
+            transport.set_gripper(left_opening=100.0,right_opening=100.0)
+    elif a == 4:       # 打开夹爪
+        with WebsocketTransport(config=config) as transport:
+            transport.set_gripper(left_opening=100.0,right_opening=100.0)
+    elif a == 5:       # 关闭夹爪
+        with WebsocketTransport(config=config) as transport:
+            transport.set_gripper()
     else:  # 先进入奇异状态，再进入放松状态
         with WebsocketTransport(config=config) as transport:
             transport.move_head(up_head, move_time=3)
@@ -81,6 +95,7 @@ def main() -> None:
             transport.move_head(DEFAULT_INIT_HEAD,move_time=3)
             time.sleep(3)
             transport.movej(relax_post,move_time=2)
+            transport.set_gripper(left_opening=100.0,right_opening=100.0)
 
 # ── 程序入口 ──
 if __name__ == "__main__":
